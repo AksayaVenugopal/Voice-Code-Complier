@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Editor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+        #container { display: flex; height: 100vh; }
+        #editor { flex: 1; padding: 10px; }
+        #output { width: 400px; background: #f0f0f0; padding: 10px; overflow-y: auto; }
+        .button { margin: 5px; padding: 10px; background: #007bff; color: white; border: none; cursor: pointer; }
+        .button:disabled { background: #d6d6d6; }
+        .button.red { background: #dc3545; }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="editor"></div>
+        <div id="output"></div>
+    </div>
+    <button id="startRecording" class="button">Start Recording</button>
+    <button id="stopRecording" class="button red" disabled>Stop Recording</button>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.3.2/socket.io.min.js"></script>
+    <script>
+        var editor = CodeMirror(document.getElementById('editor'), {
+            mode: 'python',
+            lineNumbers: true,
+            theme: 'default'
+        });
+
+        var socket = io();
+
+        document.getElementById('startRecording').addEventListener('click', function() {
+            fetch('/start_recording', { method: 'POST' });
+            document.getElementById('startRecording').disabled = true;
+            document.getElementById('stopRecording').disabled = false;
+        });
+
+        document.getElementById('stopRecording').addEventListener('click', function() {
+            fetch('/stop_recording', { method: 'POST' });
+            document.getElementById('startRecording').disabled = false;
+            document.getElementById('stopRecording').disabled = true;
+        });
+
+        socket.on('speech_result', function(data) {
+            if (data.text) {
+                editor.replaceRange(data.text + '\n', { line: editor.lineCount() - 1, ch: editor.getLine(editor.lineCount() - 1).length });
+            }
+        });
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter' && event.ctrlKey) {
+                fetch('/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: editor.getValue() })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    var output = document.getElementById('output');
+                    output.textContent += data.output + '\n';
+                    output.scrollTop = output.scrollHeight;
+                });
+            }
+        });
+    </script>
+</body>
+</html>

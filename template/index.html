@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Editor with Speech Recognition</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f4f4f9;
+        }
+        #container {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #editor {
+            flex: 1;
+            border-right: 2px solid #ddd;
+            background: #ffffff;
+            padding: 10px;
+        }
+        #output {
+            width: 400px;
+            background: #ffffff;
+            padding: 10px;
+            border-left: 2px solid #ddd;
+            overflow-y: auto;
+            font-family: monospace;
+        }
+        .button {
+            margin: 10px;
+            padding: 12px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .button.red {
+            background: #dc3545;
+        }
+        .button:disabled {
+            background: #d6d6d6;
+            cursor: not-allowed;
+        }
+        #controls {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+        #controls button {
+            margin: 5px;
+        }
+        .output-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .description {
+            margin: 20px;
+            padding: 10px;
+            background: #ffffff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .description p {
+            margin: 0;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="editor">
+            <p>Type your Python code here...</p>
+        </div>
+        <div id="output">
+            <div class="output-title">Output:</div>
+        </div>
+    </div>
+    <div id="controls">
+        <button id="startRecording" class="button">Start Recording</button>
+        <button id="stopRecording" class="button red" disabled>Stop Recording</button>
+        <button id="runCode" class="button">Run Code</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.3.2/socket.io.min.js"></script>
+    <script>
+        var editor = CodeMirror(document.getElementById('editor'), {
+            mode: 'python',
+            lineNumbers: true,
+            theme: 'default'
+        });
+
+        var socket = io();
+
+        document.getElementById('startRecording').addEventListener('click', function() {
+            fetch('/start_recording', { method: 'POST' });
+            document.getElementById('startRecording').disabled = true;
+            document.getElementById('stopRecording').disabled = false;
+        });
+
+        document.getElementById('stopRecording').addEventListener('click', function() {
+            fetch('/stop_recording', { method: 'POST' });
+            document.getElementById('startRecording').disabled = false;
+            document.getElementById('stopRecording').disabled = true;
+        });
+
+        document.getElementById('runCode').addEventListener('click', function() {
+            fetch('/execute', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: editor.getValue() })
+            })
+            .then(response => response.json())
+            .then(data => {
+                var output = document.getElementById('output');
+                output.innerHTML += '<div>> ' + data.output.replace(/\n/g, '<br>') + '</div>';
+                output.scrollTop = output.scrollHeight;
+            });
+        });
+
+        socket.on('speech_result', function(data) {
+            if (data.text) {
+                editor.replaceRange(data.text + '\n', { line: editor.lineCount() - 1, ch: editor.getLine(editor.lineCount() - 1).length });
+            }
+        });
+    </script>
+</body>
+</html>
