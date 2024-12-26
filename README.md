@@ -1,0 +1,1 @@
+Created a Voice Code Compiler using Natural Language Processing, integrating SpeechRecognition and PyAutoGUI to execute code based on voice input with 85% accuracy. Emphasized modularity and error-handling to improve usability.
